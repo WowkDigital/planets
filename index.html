@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Solar System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: url('bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            flex-direction: column;
+        }
+        canvas {
+            background: transparent;
+        }
+        .controls {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+            font-family: Poppins, sans-serif;
+            font-size: 30px!important;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .control-group label {
+            margin-bottom: 5px;
+            color: white;
+            font-size: 20px;
+        }
+        .control-group input {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 200px;
+            height: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            outline: none;
+            transition: background 0.3s;
+        }
+        .control-group input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            transition: background 0.3s;
+        }
+        .control-group input::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            transition: background 0.3s;
+        }
+        .control-group input:hover {
+            background: #ccc;
+        }
+        .control-group input::-webkit-slider-thumb:hover {
+            background: #45a049;
+        }
+        .control-group input::-moz-range-thumb:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="solarSystem"></canvas>
+    <div class="controls">
+        <div class="control-group">
+            <label for="earthDistance">Earth Distance: <span id="earthDistanceValue">200</span></label>
+            <input type="range" id="earthDistance" min="100" max="1000" step="1" value="420">
+        </div>
+        <div class="control-group">
+            <label for="moonDistance">Moon Distance: <span id="moonDistanceValue">50</span></label>
+            <input type="range" id="moonDistance" min="20" max="1000" step="1" value="69">
+        </div>
+        <div class="control-group">
+            <label for="sunMass">Sun Mass: <span id="sunMassValue">1000</span></label>
+            <input type="range" id="sunMass" min="100" max="10000" step="1" value="2137">
+        </div>
+    </div>
+    <script type="module">
+        import { scale, panX, panY } from './controls.js';
+
+        const canvas = document.getElementById('solarSystem');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const earthDistanceControl = document.getElementById('earthDistance');
+        const moonDistanceControl = document.getElementById('moonDistance');
+        const sunMassControl = document.getElementById('sunMass');
+        const earthDistanceValue = document.getElementById('earthDistanceValue');
+        const moonDistanceValue = document.getElementById('moonDistanceValue');
+        const sunMassValue = document.getElementById('sunMassValue');
+
+        const sunImage = new Image();
+        sunImage.src = 'sun.png';
+
+        const earthImage = new Image();
+        earthImage.src = 'earth.png';
+
+        const moonImage = new Image();
+        moonImage.src = 'moon.png';
+
+        const sun = { x: canvas.width / 2, y: canvas.height / 2, radius: 100, pulse: 0, pulseDirection: 1, rotationAngle: 0 };
+        const earth = { x: 0, y: 0, radius: 20, orbitRadius: 200, angle: 0 };
+        const moon = { x: 0, y: 0, radius: 5, orbitRadius: 50, angle: 0 };
+
+        function calculateAngularSpeed(distance, massOfSun) {
+            const gravitationalConstant = 1;
+            return Math.sqrt(gravitationalConstant * massOfSun / Math.pow(distance, 3));
+        }
+
+        function drawImage(img, x, y, radius) {
+            ctx.save();
+            // ctx.beginPath();
+            // ctx.arc(x, y, radius, 0, Math.PI * 2);
+            // ctx.closePath();
+            // ctx.clip();
+            ctx.drawImage(img, x - radius, y - radius, radius * 2, radius * 2);
+            ctx.restore();
+        }
+
+        function drawSun() {
+            const pulseAmount = 3;
+            const minRadius = sun.radius - pulseAmount;
+            const maxRadius = sun.radius + pulseAmount;
+            sun.pulse += sun.pulseDirection * 0.05;
+            if (sun.pulse < -pulseAmount || sun.pulse > pulseAmount) {
+                sun.pulseDirection *= -1;
+            }
+            const currentRadius = sun.radius + sun.pulse;
+
+            ctx.save();
+            ctx.translate(sun.x, sun.y);
+            sun.rotationAngle += 0.001; // Increment the rotation angle
+            ctx.rotate(sun.rotationAngle); // Rotate around the center of the Sun
+
+            // Draw glow effect
+            ctx.beginPath();
+            ctx.arc(0, 0, currentRadius + 30, 0, Math.PI * 2, false);
+            ctx.fillStyle = 'rgba(255, 204, 0, 0.03)';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, currentRadius + 20, 0, Math.PI * 2, false);
+            ctx.fillStyle = 'rgba(255, 204, 0, 0.05)';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, currentRadius +10, 0, Math.PI * 2, false);
+            ctx.fillStyle = 'rgba(255, 204, 0, 0.1)';
+            ctx.fill();
+
+            // Draw the Sun image rotated
+            drawImage(sunImage, 0, 0, currentRadius);
+
+            ctx.restore();
+        }
+
+        function drawSolarSystem() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(scale, scale);
+            ctx.translate(-canvas.width / 2 + panX, -canvas.height / 2 + panY);
+
+            drawSun();
+
+            const massOfSun = parseFloat(sunMassControl.value);
+            sunMassValue.textContent = massOfSun;
+
+            earth.orbitRadius = parseFloat(earthDistanceControl.value);
+            earthDistanceValue.textContent = earth.orbitRadius;
+            earth.speed = calculateAngularSpeed(earth.orbitRadius, massOfSun);
+
+            earth.x = sun.x + earth.orbitRadius * Math.cos(earth.angle);
+            earth.y = sun.y + earth.orbitRadius * Math.sin(earth.angle);
+            earth.angle += earth.speed;
+
+            drawImage(earthImage, earth.x, earth.y, earth.radius);
+
+            moon.orbitRadius = parseFloat(moonDistanceControl.value);
+            moonDistanceValue.textContent = moon.orbitRadius;
+            moon.speed = calculateAngularSpeed(moon.orbitRadius, massOfSun);
+
+            moon.x = earth.x + moon.orbitRadius * Math.cos(moon.angle);
+            moon.y = earth.y + moon.orbitRadius * Math.sin(moon.angle);
+            moon.angle += moon.speed;
+
+            drawImage(moonImage, moon.x, moon.y, moon.radius);
+
+            ctx.restore();
+            requestAnimationFrame(drawSolarSystem);
+        }
+
+        earthDistanceControl.addEventListener('input', () => {
+            earthDistanceValue.textContent = earthDistanceControl.value;
+        });
+
+        moonDistanceControl.addEventListener('input', () => {
+            moonDistanceValue.textContent = moonDistanceControl.value;
+        });
+
+        sunMassControl.addEventListener('input', () => {
+            sunMassValue.textContent = sunMassControl.value;
+        });
+
+        Promise.all([
+            new Promise(resolve => sunImage.onload = resolve),
+            new Promise(resolve => earthImage.onload = resolve),
+            new Promise(resolve => moonImage.onload = resolve),
+        ]).then(drawSolarSystem);
+    </script>
+</body>
+</html>
